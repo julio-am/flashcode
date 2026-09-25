@@ -9,7 +9,7 @@ Each problem is a folder: `problems/<category>/<slug>/`. The category must be li
 | `solution.cpp` | The reference answer. Shown when the user clicks Show solution. Must pass. |
 | `wrong*.cpp` | One or more plausible mistakes. Each must *not* pass. |
 
-`npm run verify` grades every `solution.cpp` and `wrong*.cpp`, and CI runs it under C++17 and C++20.
+`npm run verify` grades every `solution.cpp` and `wrong*.cpp`, and CI runs it too. Everything compiles as C++23.
 
 ## The harness
 
@@ -40,4 +40,4 @@ for (auto [a, b] : cases) {
 
 **Definitions at global scope** (classes, functions). Put the marker at the top level. For classes, probe with templates and `if constexpr` so a missing constructor or member becomes a `FAIL(...)` line instead of a wall of template errors; see `init/user-class`.
 
-Keep harness helper names prefixed with `flash_` so they don't collide with the user's code, and stay C++17-compatible, since hosted Judge0 may use an older GCC.
+Keep harness helper names prefixed with `flash_` so they don't collide with the user's code. C++23 features are fair game in harnesses and answers.

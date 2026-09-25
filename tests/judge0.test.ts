@@ -16,7 +16,7 @@ describe("Judge0Runner", () => {
       return new Response(JSON.stringify(responses.shift()), { status: 200 });
     }) as unknown as typeof fetch;
     const runner = new Judge0Runner(
-      { url: "https://judge0-ce.p.rapidapi.com", apiKey: "k", apiKeyHeader: "X-RapidAPI-Key", languageId: 54, compilerOptions: "-std=c++17", pollMs: 1 },
+      { url: "https://judge0-ce.p.rapidapi.com", apiKey: "k", apiKeyHeader: "X-RapidAPI-Key", languageId: 105, pollMs: 1 },
       fetchImpl,
     );
     const out = await runner.run({ source: '#include "flash.h"\nint main() {}', stdin: "tok\n" });
@@ -26,7 +26,8 @@ describe("Judge0Runner", () => {
     expect(source).toContain("#define CHECK(");
     expect(source).not.toContain('#include "flash.h"');
     expect(Buffer.from(body.stdin, "base64").toString()).toBe("tok\n");
-    expect(body.language_id).toBe(54);
+    expect(body.language_id).toBe(105);
+    expect(body.compiler_options).toContain("-std=c++23");
     const headers = calls[0].init!.headers as Record<string, string>;
     expect(headers["X-RapidAPI-Key"]).toBe("k");
     expect(headers["X-RapidAPI-Host"]).toBe("judge0-ce.p.rapidapi.com");
@@ -44,7 +45,8 @@ describe("Judge0Runner", () => {
   });
 
   it("reads config from the environment", () => {
-    const cfg = judge0ConfigFromEnv({ JUDGE0_URL: "https://judge.example.com/", JUDGE0_API_KEY: "s" } as unknown as NodeJS.ProcessEnv);
-    expect(cfg).toMatchObject({ url: "https://judge.example.com", apiKeyHeader: "X-Auth-Token", languageId: 54 });
+    const cfg = judge0ConfigFromEnv({ JUDGE0_URL: "https://judge.example.com/", JUDGE0_API_KEY: "s", JUDGE0_LANGUAGE_ID: "105" } as unknown as NodeJS.ProcessEnv);
+    expect(cfg).toMatchObject({ url: "https://judge.example.com", apiKeyHeader: "X-Auth-Token", languageId: 105 });
+    expect(() => judge0ConfigFromEnv({ JUDGE0_URL: "https://j.example.com" } as unknown as NodeJS.ProcessEnv)).toThrow(/LANGUAGE_ID/);
   });
 });

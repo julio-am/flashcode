@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { flashHeader } from "./flash-header";
-import { LIMITS, cxxStd, type RunOutcome, type RunRequest, type Runner } from "./types";
+import { CXX_STD, LIMITS, type RunOutcome, type RunRequest, type Runner } from "./types";
 
 /**
  * Compiles and runs with the g++ on this machine, under rlimits and timeouts.
@@ -21,7 +21,7 @@ export class LocalRunner implements Runner {
 
   private flags(): string[] {
     return [
-      `-std=${cxxStd()}`,
+      `-std=${CXX_STD}`,
       "-O0",
       "-pipe",
       "-Wall",

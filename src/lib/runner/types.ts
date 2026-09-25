@@ -34,6 +34,5 @@ export const LIMITS = {
   maxOutputBytes: 64 * 1024,
 };
 
-export function cxxStd(): string {
-  return process.env.FLASH_CXX_STD ?? "c++20";
-}
+/** v1 is scoped to one language standard. Every runner compiles with it. */
+export const CXX_STD = "c++23";

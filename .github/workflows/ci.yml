@@ -18,14 +18,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
-      # Every reference solution must pass and every wrong*.cpp must fail,
-      # under both standards the runners may use.
+      # Every reference solution must pass and every wrong*.cpp must fail (C++23).
       - run: npm run verify
         env:
           FLASH_RUNNER: local
-          FLASH_CXX_STD: c++20
-      - run: npm run verify
-        env:
-          FLASH_RUNNER: local
-          FLASH_CXX_STD: c++17
       - run: npm run build

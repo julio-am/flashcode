@@ -6,7 +6,7 @@ v1 ships 24 problems in three categories: vector operations, initialization synt
 
 ## Run it locally
 
-Needs Node 22.12+, Postgres 13+, and `g++` (GCC 10+).
+Needs Node 22.12+, Postgres 13+, and `g++` 13+ (everything compiles as C++23).
 
 ```bash
 npm install
@@ -38,10 +38,10 @@ All execution goes through the `Runner` interface in `src/lib/runner/types.ts`. 
 
 | Runner | Use | Config |
 | --- | --- | --- |
-| `local` | Development and CI (reference solutions only) | `FLASH_CXX_STD` (default `c++20`) |
-| `judge0` | Hosted prototype (RapidAPI Judge0 CE) or a self-hosted Judge0 | `JUDGE0_URL`, `JUDGE0_API_KEY`, `JUDGE0_LANGUAGE_ID`, `JUDGE0_COMPILER_OPTIONS` |
+| `local` | Development and CI (reference solutions only) | `CXX` to pick the compiler (default `g++`) |
+| `judge0` | Hosted prototype (RapidAPI Judge0 CE) or a self-hosted Judge0 | `JUDGE0_URL`, `JUDGE0_API_KEY`, `JUDGE0_LANGUAGE_ID` |
 
-For Judge0, `flash.h` is pasted into the source, since Judge0 takes a single file. Language 54 (GCC 9.2) is the default on Judge0 CE; harnesses stay C++17-compatible so they work there. If your instance lists a newer GCC under `GET /languages`, set its id and `-std=c++20`.
+v1 is scoped to C++23: every runner compiles with `-std=c++23` (`CXX_STD` in `src/lib/runner/types.ts`). For Judge0, `flash.h` is pasted into the source, since Judge0 takes a single file, and `JUDGE0_LANGUAGE_ID` has no default: it must name a GCC 11+ language from your instance's `GET /languages`. The classic Judge0 CE language list tops out at GCC 9, which can't compile C++23, so check before relying on it.
 
 The planned launch runner (g++ in nsjail inside gVisor on a separate no-network VM, with the precompiled header) is a new class implementing the same interface.
 

@@ -4,7 +4,6 @@
 //
 //   npm run verify                      # all problems, local g++
 //   npm run verify -- vectors/concat    # only ids that start with this
-//   FLASH_CXX_STD=c++17 npm run verify  # check the older standard too
 import { grade } from "../src/lib/grader/grade";
 import { loadCatalog } from "../src/lib/problems";
 import { getRunner } from "../src/lib/runner";

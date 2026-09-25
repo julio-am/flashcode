@@ -1,12 +1,11 @@
 import { inlineFlashHeader } from "./flash-header";
-import { LIMITS, type RunOutcome, type RunRequest, type Runner } from "./types";
+import { CXX_STD, LIMITS, type RunOutcome, type RunRequest, type Runner } from "./types";
 
 export interface Judge0Config {
   url: string; // e.g. https://judge0-ce.p.rapidapi.com or your own instance
   apiKey?: string;
   apiKeyHeader?: string;
   languageId: number;
-  compilerOptions: string;
   pollMs?: number;
   timeoutMs?: number;
 }
@@ -15,14 +14,18 @@ export function judge0ConfigFromEnv(env = process.env): Judge0Config {
   const url = env.JUDGE0_URL;
   if (!url) throw new Error("FLASH_RUNNER=judge0 needs JUDGE0_URL");
   const rapid = url.includes("rapidapi.com");
+  // Must be a GCC that accepts -std=c++23 (GCC 11+; 13+ recommended). Ids
+  // differ between Judge0 versions, so there is no default: pick the newest
+  // "C++ (GCC ...)" from GET /languages on your instance.
+  const languageId = Number(env.JUDGE0_LANGUAGE_ID);
+  if (!Number.isInteger(languageId) || languageId <= 0) {
+    throw new Error("FLASH_RUNNER=judge0 needs JUDGE0_LANGUAGE_ID for a GCC 11+ C++ language");
+  }
   return {
     url: url.replace(/\/+$/, ""),
     apiKey: env.JUDGE0_API_KEY || undefined,
     apiKeyHeader: env.JUDGE0_API_KEY_HEADER || (rapid ? "X-RapidAPI-Key" : "X-Auth-Token"),
-    // 54 is "C++ (GCC 9.2.0)" on Judge0 CE. Newer instances list newer GCCs
-    // under other ids; check GET /languages on yours.
-    languageId: Number(env.JUDGE0_LANGUAGE_ID ?? 54),
-    compilerOptions: env.JUDGE0_COMPILER_OPTIONS ?? `-std=${env.FLASH_CXX_STD ?? "c++17"} -O0 -Wall`,
+    languageId,
   };
 }
 
@@ -61,7 +64,7 @@ export class Judge0Runner implements Runner {
       body: JSON.stringify({
         source_code: b64(inlineFlashHeader(req.source)),
         language_id: this.cfg.languageId,
-        compiler_options: this.cfg.compilerOptions,
+        compiler_options: `-std=${CXX_STD} -O0 -Wall`,
         stdin: b64(req.stdin),
         cpu_time_limit: LIMITS.runCpuSeconds,
         wall_time_limit: LIMITS.runWallSeconds,
