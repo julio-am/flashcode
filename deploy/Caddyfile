@@ -1,0 +1,10 @@
+# Caddy gets and renews the HTTPS certificate for SITE_DOMAIN on its own, as
+# soon as the domain's DNS points at this machine and ports 80/443 are open.
+{$SITE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}
+
+www.{$SITE_DOMAIN} {
+	redir https://{$SITE_DOMAIN}{uri} permanent
+}
