@@ -21,9 +21,11 @@ interface Props {
   autoFocus?: boolean;
   placeholderText?: string;
   ariaLabel: string;
+  /** Fill the parent's height, as the main editor panel. */
+  fill?: boolean;
 }
 
-export function CodeEditor({ value, onChange, onSubmit, readOnly, diagnostics, autoFocus, placeholderText, ariaLabel }: Props) {
+export function CodeEditor({ value, onChange, onSubmit, readOnly, diagnostics, autoFocus, placeholderText, ariaLabel, fill }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const handlers = useRef({ onChange, onSubmit });
@@ -66,7 +68,7 @@ export function CodeEditor({ value, onChange, onSubmit, readOnly, diagnostics, a
             if (u.docChanged) handlers.current.onChange?.(u.state.doc.toString());
           }),
           EditorView.theme({
-            "&": { fontSize: "14px", borderRadius: "8px" },
+            "&": { fontSize: "14px", borderRadius: fill ? "0" : "8px", height: fill ? "100%" : "auto" },
             ".cm-scroller": { fontFamily: "var(--font-mono)", lineHeight: "1.6" },
             ".cm-content": { padding: "10px 0" },
             "&.cm-focused": { outline: "none" },
@@ -79,7 +81,7 @@ export function CodeEditor({ value, onChange, onSubmit, readOnly, diagnostics, a
     return () => v.destroy();
     // The editor is created once; later value changes are pushed in below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [readOnly]);
+  }, [readOnly, fill]);
 
   // Replace the document when the parent swaps problems.
   useEffect(() => {
@@ -105,5 +107,7 @@ export function CodeEditor({ value, onChange, onSubmit, readOnly, diagnostics, a
     v.dispatch(setDiagnostics(v.state, cm));
   }, [diagnostics]);
 
-  return <div ref={host} className="overflow-hidden rounded-lg border border-[var(--line)]" />;
+  return (
+    <div ref={host} className={fill ? "h-full [&_.cm-editor]:h-full" : "overflow-hidden rounded-lg border border-[var(--line)]"} />
+  );
 }

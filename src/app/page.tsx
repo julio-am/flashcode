@@ -7,7 +7,7 @@ export default function Home() {
   for (const p of problems.values()) counts.set(p.category, (counts.get(p.category) ?? 0) + 1);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-8">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-semibold tracking-tight">What do you want to drill?</h1>
         <p className="text-[var(--muted)]">
