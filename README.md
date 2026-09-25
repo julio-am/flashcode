@@ -10,7 +10,7 @@ Needs Node 22.12+, Postgres 13+, and `g++` 13+ (everything compiles as C++23).
 
 ```bash
 npm install
-cp .env.example .env.local        # then set DATABASE_URL and SESSION_SECRET
+cp .env.example .env.local        # then set DATABASE_URL, SESSION_SECRET and BETTER_AUTH_SECRET
 npm run db:migrate                # creates the app tables
 npm run dev                       # Next.js on :3000 plus the grading worker
 ```
@@ -18,6 +18,19 @@ npm run dev                       # Next.js on :3000 plus the grading worker
 `npm run dev` starts two processes: the web app and the worker that grades submissions. With `FLASH_RUNNER=local` the worker compiles with your own `g++`.
 
 > **The local runner is not a sandbox.** Submitted code runs as your user with only rlimits and a timeout. It is for development, and it refuses to start when `NODE_ENV=production`.
+
+## Sign-in
+
+Visitors practise as anonymous guests (a signed `fc_uid` cookie and a `users` row with no email). Signing in with GitHub or Google goes through [Better Auth](https://www.better-auth.com/) (`src/lib/auth.ts`, mounted at `/api/auth/*`), which keeps its users, sessions and linked accounts in the same Postgres. The first request after signing in moves the guest's attempts and review schedule onto the account and deletes the guest (`src/lib/merge-guest.ts`); where both have a schedule for the same problem, the more recent review wins. The same email from both providers is one account.
+
+Each provider needs an OAuth app, and its button only shows once its two variables are set:
+
+| Provider | Register at | Callback URL | Variables |
+| --- | --- | --- | --- |
+| GitHub | GitHub > Settings > Developer settings > OAuth Apps | `<BETTER_AUTH_URL>/api/auth/callback/github` | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` |
+| Google | Google Cloud Console > APIs & Services > Credentials > OAuth client ID (Web application) | `<BETTER_AUTH_URL>/api/auth/callback/google` | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+
+For local development use `http://localhost:3000` as `BETTER_AUTH_URL`. GitHub OAuth apps take one callback URL each, so register a second app for the deployed site.
 
 ## How grading works
 
@@ -76,5 +89,4 @@ runner/                   the sandbox runner service (Docker image, nsjail confi
 
 ## Not done yet
 
-- Sign-in. Users are anonymous guests keyed by a signed cookie; Auth.js can attach to the `users` table.
 - Deployment config.
