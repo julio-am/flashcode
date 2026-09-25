@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AccountMenu } from "@/components/AccountMenu";
+import { enabledProviders } from "@/lib/auth";
+import { signedInUser } from "@/lib/session";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,7 +10,8 @@ export const metadata: Metadata = {
   description: "Quick active-recall drills for C++ syntax and core algorithms.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const user = await signedInUser();
   return (
     <html lang="en" className="h-full antialiased">
       <body className="flex min-h-full flex-col">
@@ -17,6 +21,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               flash<span className="text-[var(--accent)]">code</span>
             </Link>
             <span className="ml-3 text-sm text-[var(--muted)]">C++ recall drills</span>
+            <div className="ml-auto">
+              <AccountMenu
+                user={user && { name: user.name ?? null, image: user.image ?? null }}
+                canSignIn={enabledProviders().length > 0}
+              />
+            </div>
           </div>
         </header>
         <main className="flex w-full flex-1 flex-col">{children}</main>

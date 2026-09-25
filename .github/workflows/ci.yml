@@ -8,6 +8,15 @@ on:
 jobs:
   check:
     runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: flashcode
+          POSTGRES_PASSWORD: flashcode
+          POSTGRES_DB: flashcode
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 2s --health-retries 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,7 +26,14 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      # Migrations apply cleanly, and the account tests run against them.
+      - run: npm run db:migrate
+        env:
+          DATABASE_URL: postgres://flashcode:flashcode@localhost:5432/flashcode
       - run: npm test
+        env:
+          DATABASE_URL: postgres://flashcode:flashcode@localhost:5432/flashcode
+          BETTER_AUTH_SECRET: ci-auth-secret-0123456789abcdef0123
       # Every reference solution must pass and every wrong*.cpp must fail (C++23).
       - run: npm run verify
         env:

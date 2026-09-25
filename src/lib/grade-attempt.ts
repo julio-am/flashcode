@@ -32,14 +32,17 @@ export async function gradeAttempt(attemptId: string): Promise<void> {
     result = { status: "internal_error", cases: [], diagnostics: [], message: "The grader hit a problem. Try again." };
   }
 
-  await db()
+  // Read the owner back: a guest who signed in while this was grading has had
+  // the attempt moved to their account.
+  const [finished] = await db()
     .update(schema.attempts)
     .set({ status: result.status, result, finishedAt: new Date() })
-    .where(eq(schema.attempts.id, attemptId));
+    .where(eq(schema.attempts.id, attemptId))
+    .returning({ userId: schema.attempts.userId });
 
-  if (SCHEDULED.includes(result.status)) {
+  if (finished && SCHEDULED.includes(result.status)) {
     await recordReview({
-      userId: attempt.userId,
+      userId: finished.userId,
       problemId: attempt.problemId,
       presentationId: attempt.presentationId,
       rating: ratingFor({ passed: result.status === "passed", elapsedMs: attempt.elapsedMs }),
