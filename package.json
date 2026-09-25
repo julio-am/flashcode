@@ -9,7 +9,7 @@
     "start": "next start",
     "worker": "tsx --env-file-if-exists=.env.local src/worker.ts",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "verify": "tsx scripts/verify-problems.ts",
     "db:generate": "drizzle-kit generate",
