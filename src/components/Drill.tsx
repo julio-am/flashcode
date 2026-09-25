@@ -127,80 +127,164 @@ export function Drill({ category }: { category?: string }) {
   };
 
   if (phase.kind === "error") {
-    return <p className="text-[var(--bad)]">{phase.message}</p>;
+    return <p className="p-6 text-[var(--bad)]">{phase.message}</p>;
   }
-  if (!current) return <p className="text-[var(--muted)]">Loading a problem…</p>;
+  if (!current) return <p className="p-6 text-[var(--muted)]">Loading a problem…</p>;
   const { problem, reason, stats } = current;
 
   return (
-    <div className="flex flex-col gap-5" data-problem-id={problem.id}>
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="rounded-full bg-[var(--chip)] px-2.5 py-0.5 text-[var(--muted)]">{CATEGORY_LABEL[problem.category] ?? problem.category}</span>
-        <span className="rounded-full bg-[var(--accent-soft)] px-2.5 py-0.5 text-[var(--accent)]">{REASON_LABEL[reason]}</span>
-        <span className="ml-auto text-[var(--muted)]">
-          {stats.due} due · {stats.new} new · {stats.total} total
-        </span>
-      </div>
+    <SplitPane
+      data-problem-id={problem.id}
+      left={
+        <div className="flex flex-col gap-5 p-5 lg:p-6">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="rounded-full bg-[var(--chip)] px-2.5 py-0.5 text-[var(--muted)]">
+              {CATEGORY_LABEL[problem.category] ?? problem.category}
+            </span>
+            <span className="rounded-full bg-[var(--accent-soft)] px-2.5 py-0.5 text-[var(--accent)]">{REASON_LABEL[reason]}</span>
+            <span className="ml-auto text-[var(--muted)]">
+              {stats.due} due · {stats.new} new · {stats.total} total
+            </span>
+          </div>
 
-      <div className="flex flex-col gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">{problem.title}</h1>
-        <Prompt text={problem.prompt} />
-      </div>
+          <div className="flex flex-col gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight">{problem.title}</h1>
+            <Prompt text={problem.prompt} />
+          </div>
 
-      {problem.given && (
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Already in scope</span>
-          <CodeEditor key={`given-${problem.id}`} value={problem.given} readOnly ariaLabel="Code already in scope" />
+          {problem.given && (
+            <div className="flex flex-col gap-1.5">
+              <span className="section-label">Already in scope</span>
+              <CodeEditor key={`given-${problem.id}`} value={problem.given} readOnly ariaLabel="Code already in scope" />
+            </div>
+          )}
+
+          {solution ? (
+            <div className="flex flex-col gap-1.5">
+              <span className="section-label">Reference solution</span>
+              <CodeEditor key={`sol-${presentationId}`} value={solution} readOnly ariaLabel="Reference solution" />
+              <p className="text-sm text-[var(--muted)]">Peeking before a graded answer counts as a miss, so this one comes back sooner.</p>
+            </div>
+          ) : (
+            <button onClick={reveal} className="btn-quiet self-start">
+              Show solution
+            </button>
+          )}
+
+          <Link href="/" className="mt-auto pt-4 text-sm text-[var(--muted)] hover:text-[var(--ink)]">
+            ← Change category
+          </Link>
         </div>
-      )}
-
-      <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Your code</span>
-        <CodeEditor
-          value={code}
-          onChange={setCode}
-          onSubmit={submit}
-          autoFocus
-          diagnostics={phase.kind === "graded" ? phase.result.diagnostics : undefined}
-          placeholderText="Type your answer from memory"
-          ariaLabel="Your answer"
-        />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        {passed ? (
-          <button onClick={() => loadNext(problem.id)} className="btn-primary">
-            Next problem <kbd>⌘/Ctrl ↵</kbd>
-          </button>
-        ) : (
-          <button onClick={submit} disabled={phase.kind === "grading" || phase.kind === "loading"} className="btn-primary">
-            {phase.kind === "grading" ? "Grading…" : "Submit"} <kbd>⌘/Ctrl ↵</kbd>
-          </button>
-        )}
-        {!solution && (
-          <button onClick={reveal} className="btn-quiet">
-            Show solution
-          </button>
-        )}
-        {!passed && (
-          <button onClick={() => loadNext(problem.id)} className="btn-quiet">
-            Skip
-          </button>
-        )}
-        <Link href="/" className="ml-auto text-sm text-[var(--muted)] hover:text-[var(--ink)]">
-          Change category
-        </Link>
-      </div>
-
-      {phase.kind === "graded" && <ResultPanel result={phase.result} />}
-
-      {solution && (
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Reference solution</span>
-          <CodeEditor key={`sol-${presentationId}`} value={solution} readOnly ariaLabel="Reference solution" />
-          <p className="text-sm text-[var(--muted)]">Peeking before a graded answer counts as a miss, so this one comes back sooner.</p>
+      }
+      right={
+        <div className="flex h-full min-h-[70vh] flex-col bg-[var(--code-bg)] lg:min-h-0">
+          <div className="flex items-center gap-3 border-b border-white/10 px-4 py-2 text-xs text-[var(--code-ink)]/70">
+            <span className="font-mono">your_code.cpp</span>
+            <span className="rounded bg-white/10 px-1.5 py-0.5 font-mono">C++23</span>
+            <span className="ml-auto hidden sm:inline">No autocomplete: type it from memory</span>
+          </div>
+          <div className="min-h-[40vh] flex-1 lg:min-h-0">
+            <CodeEditor
+              fill
+              value={code}
+              onChange={setCode}
+              onSubmit={submit}
+              autoFocus
+              diagnostics={phase.kind === "graded" ? phase.result.diagnostics : undefined}
+              ariaLabel="Your answer"
+            />
+          </div>
+          <div className="flex max-h-[45%] flex-col border-t border-[var(--line)] bg-[var(--surface)]">
+            <div className="flex flex-wrap items-center gap-2 px-4 py-2.5">
+              <span className="text-sm font-medium">Result</span>
+              {!passed && (
+                <button onClick={() => loadNext(problem.id)} className="btn-quiet ml-auto">
+                  Skip
+                </button>
+              )}
+              {passed ? (
+                <button onClick={() => loadNext(problem.id)} className="btn-primary ml-auto">
+                  Next problem <kbd>⌘/Ctrl ↵</kbd>
+                </button>
+              ) : (
+                <button onClick={submit} disabled={phase.kind === "grading" || phase.kind === "loading"} className="btn-primary">
+                  {phase.kind === "grading" ? "Grading…" : "Submit"} <kbd>⌘/Ctrl ↵</kbd>
+                </button>
+              )}
+            </div>
+            <div className="overflow-y-auto px-4 pb-4">
+              {phase.kind === "graded" ? (
+                <ResultPanel result={phase.result} />
+              ) : (
+                <p className="text-sm text-[var(--muted)]">
+                  {phase.kind === "grading" ? "Compiling and running the tests…" : "Submit to compile your code and run the tests."}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
-      )}
+      }
+    />
+  );
+}
+
+const SPLIT_KEY = "flashcode.split";
+
+/** Left and right panels with a draggable divider on wide screens; stacked on narrow ones. */
+function SplitPane({ left, right, ...rest }: { left: React.ReactNode; right: React.ReactNode; "data-problem-id"?: string }) {
+  const [leftPct, setLeftPct] = useState(42);
+  const container = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      const saved = Number(localStorage.getItem(SPLIT_KEY));
+      // Restoring a saved preference after mount avoids a hydration mismatch.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (saved >= 25 && saved <= 70) setLeftPct(saved);
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+
+  const startDrag = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const rect = container.current!.getBoundingClientRect();
+    let pct = leftPct;
+    const move = (ev: PointerEvent) => {
+      pct = Math.min(70, Math.max(25, ((ev.clientX - rect.left) / rect.width) * 100));
+      setLeftPct(pct);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.style.userSelect = "";
+      try {
+        localStorage.setItem(SPLIT_KEY, String(Math.round(pct)));
+      } catch {
+        /* storage unavailable */
+      }
+    };
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  return (
+    <div
+      ref={container}
+      {...rest}
+      className="flex flex-col lg:h-[calc(100dvh-var(--header-h))] lg:flex-row"
+      style={{ "--left": `${leftPct}%` } as React.CSSProperties}
+    >
+      <section className="flex flex-col bg-[var(--surface)] lg:w-[var(--left)] lg:overflow-y-auto">{left}</section>
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize panels"
+        onPointerDown={startDrag}
+        className="hidden w-1.5 cursor-col-resize bg-[var(--line)] transition-colors hover:bg-[var(--accent)] lg:block"
+      />
+      <section className="flex min-w-0 flex-1 flex-col">{right}</section>
     </div>
   );
 }
@@ -220,7 +304,7 @@ function ResultPanel({ result }: { result: GradeResult }) {
   return (
     <section
       aria-live="polite"
-      className={`flex flex-col gap-3 rounded-lg border p-4 ${good ? "border-[var(--good)] bg-[var(--good-soft)]" : "border-[var(--bad)] bg-[var(--bad-soft)]"}`}
+      className={`flex flex-col gap-3 rounded-md border-l-4 p-3 ${good ? "border-[var(--good)] bg-[var(--good-soft)]" : "border-[var(--bad)] bg-[var(--bad-soft)]"}`}
     >
       <div className="flex items-baseline gap-3">
         <h2 className={`text-lg font-semibold ${good ? "text-[var(--good)]" : "text-[var(--bad)]"}`}>{STATUS_TEXT[result.status]}</h2>
