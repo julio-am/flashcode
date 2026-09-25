@@ -38,12 +38,13 @@ All execution goes through the `Runner` interface in `src/lib/runner/types.ts`. 
 
 | Runner | Use | Config |
 | --- | --- | --- |
+| `sandbox` | Production: g++ in nsjail inside gVisor, on its own machine ([runner/](runner/README.md)) | `FLASH_SANDBOX_URL`, `FLASH_SANDBOX_TOKEN` |
 | `local` | Development and CI (reference solutions only) | `CXX` to pick the compiler (default `g++`) |
 | `judge0` | Hosted prototype (RapidAPI Judge0 CE) or a self-hosted Judge0 | `JUDGE0_URL`, `JUDGE0_API_KEY`, `JUDGE0_LANGUAGE_ID` |
 
 v1 is scoped to C++23: every runner compiles with `-std=c++23` (`CXX_STD` in `src/lib/runner/types.ts`). For Judge0, `flash.h` is pasted into the source, since Judge0 takes a single file, and `JUDGE0_LANGUAGE_ID` has no default: it must name a GCC 11+ language from your instance's `GET /languages`. The classic Judge0 CE language list tops out at GCC 9, which can't compile C++23, so check before relying on it.
 
-The planned launch runner (g++ in nsjail inside gVisor on a separate no-network VM, with the precompiled header) is a new class implementing the same interface.
+With `FLASH_SANDBOX_URL` set, `sandbox` is the default. In production the `local` runner refuses to start, since it is not a sandbox. [runner/README.md](runner/README.md) covers building and hosting the sandbox runner.
 
 ## Adding problems
 
@@ -65,15 +66,15 @@ See [problems/README.md](problems/README.md). Every problem has a reference solu
 problems/                 prompts, harnesses, reference and wrong answers
 grader/flash.h            CHECK / CHECK_EQ / FAIL / FLASH_DONE
 src/lib/grader/           assemble source, validate input, parse results
-src/lib/runner/           Runner interface, local g++, Judge0
+src/lib/runner/           Runner interface, sandbox client, local g++, Judge0
 src/lib/scheduler.ts      FSRS ratings and "what comes next"
 src/lib/grade-attempt.ts  worker-side grading of one attempt
 src/worker.ts             pg-boss consumer
 src/app/                  pages and API routes
+runner/                   the sandbox runner service (Docker image, nsjail configs)
 ```
 
 ## Not done yet
 
 - Sign-in. Users are anonymous guests keyed by a signed cookie; Auth.js can attach to the `users` table.
-- The self-hosted sandbox runner.
 - Deployment config.

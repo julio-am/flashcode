@@ -1,7 +1,7 @@
 /**
  * The one seam between the app and wherever untrusted code actually runs.
- * Today: a local g++ for development, or a Judge0 instance. Later: the
- * nsjail + gVisor runner VM from the plan. Swapping means adding a file here.
+ * Production uses the sandbox runner (runner/ in this repo: nsjail inside
+ * gVisor); a local g++ serves development, and Judge0 remains an option.
  */
 export interface RunRequest {
   /** C++ source that starts with #include "flash.h"; the runner supplies that header. */
@@ -26,6 +26,7 @@ export interface Runner {
   run(req: RunRequest): Promise<RunOutcome>;
 }
 
+// runner/server.py keeps its own copy of these; change both together.
 export const LIMITS = {
   compileSeconds: 10,
   runWallSeconds: 3,
