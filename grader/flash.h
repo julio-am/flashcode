@@ -1,10 +1,14 @@
 // flash.h: the tiny test library every FlashCode harness includes.
 //
-// Each check prints one line to stdout:
-//   @@FLASH <token> {"ok":true,"name":"...","detail":"..."}
-// and FLASH_DONE() prints a final line with the number of checks run.
-// The token is read from stdin at startup, so output the user prints
-// (or fakes) without knowing the token is ignored by the grader.
+// A harness is a list of numbered test cases. Each case records its inputs,
+// then one or more checks, and every event is printed as one line:
+//   @@FLASH <token> {"case":"begin","inputs":[{"name":"a","value":"{1, 2}"}]}
+//   @@FLASH <token> {"ok":false,"hint":"...","label":"b","actual":"...","expected":"..."}
+//   @@FLASH <token> {"case":"end"}
+// FLASH_DONE() prints a final line with the number of checks run.
+// Anything else the program prints between a case's begin and end is that
+// case's console output. The token is read from stdin at startup, so output
+// the user prints (or fakes) without knowing it is ignored by the grader.
 #pragma once
 #include <bits/stdc++.h>
 
@@ -18,6 +22,11 @@ inline std::string& token() {
 inline int& checks_run() {
   static int n = 0;
   return n;
+}
+
+inline bool& in_case() {
+  static bool b = false;
+  return b;
 }
 
 struct TokenReader {
@@ -49,15 +58,13 @@ inline std::string json_escape(const std::string& s) {
   return out;
 }
 
-inline void emit(bool ok, const std::string& name, const std::string& detail) {
-  ++checks_run();
-  std::cout << "\n@@FLASH " << token() << " {\"ok\":" << (ok ? "true" : "false")
-            << ",\"name\":\"" << json_escape(name) << "\"";
-  if (!detail.empty()) std::cout << ",\"detail\":\"" << json_escape(detail) << "\"";
-  std::cout << "}" << std::endl;
+inline std::string quote(const std::string& s) { return "\"" + json_escape(s) + "\""; }
+
+inline void line(const std::string& json) {
+  std::cout << "\n@@FLASH " << token() << " " << json << std::endl;
 }
 
-// show(x): readable rendering of values used in CHECK_EQ failure messages.
+// show(x): readable rendering of inputs and outputs.
 template <class T, class = void>
 struct is_iterable : std::false_type {};
 template <class T>
@@ -98,31 +105,87 @@ std::string show(const T& v) {
   }
 }
 
+// A string literal passed as an input value is shown as-is (a description),
+// not quoted like a std::string value.
+inline std::string show_input(const char* text) { return text; }
+template <class T>
+std::string show_input(const T& v) {
+  return show(v);
+}
+
+inline void begin_case(const std::string& inputs_json) {
+  in_case() = true;
+  line("{\"case\":\"begin\",\"inputs\":[" + inputs_json + "]}");
+}
+
+inline void end_case() {
+  in_case() = false;
+  line("{\"case\":\"end\"}");
+}
+
+inline void add_inputs(std::string&) {}
+template <class V, class... Rest>
+void add_inputs(std::string& out, const char* name, const V& value, const Rest&... rest) {
+  if (!out.empty()) out += ",";
+  out += "{\"name\":" + quote(name) + ",\"value\":" + quote(show_input(value)) + "}";
+  add_inputs(out, rest...);
+}
+
+// FLASH_CASE("a", a, "b", b) opens a test case for the rest of the enclosing
+// scope (usually one loop iteration) and records its inputs.
+struct CaseGuard {
+  template <class... Args>
+  explicit CaseGuard(const Args&... args) {
+    static_assert(sizeof...(Args) % 2 == 0, "FLASH_CASE takes name, value pairs");
+    std::string inputs;
+    add_inputs(inputs, args...);
+    begin_case(inputs);
+  }
+  ~CaseGuard() { end_case(); }
+  CaseGuard(const CaseGuard&) = delete;
+  CaseGuard& operator=(const CaseGuard&) = delete;
+};
+
+// A check made outside any FLASH_CASE becomes a case of its own.
+inline void check(bool ok, const std::string& hint, const std::string& label, const std::string& actual,
+                  const std::string& expected, bool has_values) {
+  bool standalone = !in_case();
+  if (standalone) begin_case("");
+  ++checks_run();
+  std::string json = "{\"ok\":" + std::string(ok ? "true" : "false") + ",\"hint\":" + quote(hint);
+  if (has_values) {
+    json += ",\"label\":" + quote(label) + ",\"actual\":" + quote(actual) + ",\"expected\":" + quote(expected);
+  }
+  line(json + "}");
+  if (standalone) end_case();
+}
+
 }  // namespace flash_internal
 
-// CHECK(condition, "what should be true")
-#define CHECK(cond, name) ::flash_internal::emit(static_cast<bool>(cond), (name), "")
+#define FLASH_CAT2(a, b) a##b
+#define FLASH_CAT(a, b) FLASH_CAT2(a, b)
 
-// CHECK_EQ(actual, expected, "what should be true"): shows both values on failure.
-#define CHECK_EQ(actual, expected, name)                                          \
-  do {                                                                            \
-    const auto& flash_a_ = (actual);                                              \
-    const auto& flash_e_ = (expected);                                            \
-    bool flash_ok_ = (flash_a_ == flash_e_);                                      \
-    ::flash_internal::emit(flash_ok_, (name),                                     \
-                           flash_ok_ ? std::string()                              \
-                                     : "expected " + ::flash_internal::show(flash_e_) + \
-                                           ", got " + ::flash_internal::show(flash_a_)); \
+#define FLASH_CASE(...) ::flash_internal::CaseGuard FLASH_CAT(flash_case_, __LINE__)(__VA_ARGS__)
+
+// CHECK(condition, "hint"): a yes/no check with no values to show.
+#define CHECK(cond, hint) ::flash_internal::check(static_cast<bool>(cond), (hint), "", "", "", false)
+
+// CHECK_OUT("label", actual, expected, "hint"): shows the label with actual and expected values.
+#define CHECK_OUT(label, actual, expected, hint)                                              \
+  do {                                                                                         \
+    const auto& flash_a_ = (actual);                                                           \
+    const auto& flash_e_ = (expected);                                                         \
+    ::flash_internal::check(flash_a_ == flash_e_, (hint), (label), ::flash_internal::show(flash_a_), \
+                            ::flash_internal::show(flash_e_), true);                           \
   } while (0)
 
+// CHECK_EQ(actual, expected, "hint"): CHECK_OUT labelled with the actual expression's text.
+#define CHECK_EQ(actual, expected, hint) CHECK_OUT(#actual, actual, expected, hint)
+
 // FAIL("why"): a check that always fails, for probes that detect missing pieces.
-#define FAIL(name) ::flash_internal::emit(false, (name), "")
+#define FAIL(hint) CHECK(false, hint)
 
 // FLASH_DONE(): must be the last thing main() does. No DONE line means the
 // program crashed or exited early, which the grader treats as a failure.
-#define FLASH_DONE()                                                              \
-  do {                                                                            \
-    std::cout << "\n@@FLASH " << ::flash_internal::token()                        \
-              << " {\"done\":true,\"count\":" << ::flash_internal::checks_run()   \
-              << "}" << std::endl;                                                \
-  } while (0)
+#define FLASH_DONE() \
+  ::flash_internal::line("{\"done\":true,\"count\":" + std::to_string(::flash_internal::checks_run()) + "}")

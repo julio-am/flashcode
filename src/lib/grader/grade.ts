@@ -7,7 +7,7 @@ import type { GradeResult } from "./types";
 
 export async function grade(problem: Problem, code: string, runner: Runner): Promise<GradeResult> {
   const rejected = validateSubmission(code);
-  if (rejected) return { status: "rejected", checks: [], diagnostics: [], message: rejected };
+  if (rejected) return { status: "rejected", cases: [], diagnostics: [], message: rejected };
 
   // A fresh token per job, handed to the program on stdin. Output that
   // doesn't carry it (for example the user printing a fake PASS) is ignored.

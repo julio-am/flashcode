@@ -1,0 +1,75 @@
+diff --git a/contain.cc b/contain.cc
+index 06c7534..a9fac5a 100644
+--- a/contain.cc
++++ b/contain.cc
+@@ -260,8 +260,12 @@ static bool containSetLimits(nsj_t* nsj) {
+ 	rl.rlim_cur = rl.rlim_max = config::adjustRLimit(
+ 	    RLIMIT_MSGQUEUE, nsj->njc.rlimit_msgqueue_type(), nsj->njc.rlimit_msgqueue());
+ 	if (util::setrlimit(RLIMIT_MSGQUEUE, rl) == -1) {
+-		PLOG_E("util::setrlimit(0, RLIMIT_MSGQUEUE , %" PRIu64 ")", rl.rlim_cur);
+-		return false;
++		/* gVisor refuses any change to RLIMIT_MSGQUEUE; the jail has its own IPC ns. */
++		if (errno != EPERM) {
++			PLOG_E("util::setrlimit(0, RLIMIT_MSGQUEUE , %" PRIu64 ")", rl.rlim_cur);
++			return false;
++		}
++		PLOG_W("util::setrlimit(0, RLIMIT_MSGQUEUE , %" PRIu64 ")", rl.rlim_cur);
+ 	}
+ 	return true;
+ }
+diff --git a/user.cc b/user.cc
+index 828d373..6c95a86 100644
+--- a/user.cc
++++ b/user.cc
+@@ -25,6 +25,7 @@
+ #include <fcntl.h>
+ #include <grp.h>
+ #include <limits.h>
++#include <linux/capability.h>
+ #include <linux/securebits.h>
+ #include <pwd.h>
+ #include <stdbool.h>
+@@ -266,10 +267,18 @@ bool initNsFromChild(nsj_t* nsj) {
+ 	 * Make sure all capabilities are retained after the subsequent setuid/setgid, as they will
+ 	 * be needed for privileged operations: mounts, uts change etc.
+ 	 */
++	/*
++	 * gVisor does not implement SECBIT_NO_SETUID_FIXUP. There, keep only the
++	 * permitted set across setresuid() and raise the effective set again after it.
++	 */
++	bool restore_effective = false;
+ 	if (prctl(PR_SET_SECUREBITS, SECBIT_KEEP_CAPS | SECBIT_NO_SETUID_FIXUP, 0UL, 0UL, 0UL) ==
+ 	    -1) {
+-		PLOG_E("prctl(PR_SET_SECUREBITS, SECBIT_KEEP_CAPS | SECBIT_NO_SETUID_FIXUP)");
+-		return false;
++		if (errno != EPERM || prctl(PR_SET_SECUREBITS, SECBIT_KEEP_CAPS, 0UL, 0UL, 0UL) == -1) {
++			PLOG_E("prctl(PR_SET_SECUREBITS, SECBIT_KEEP_CAPS | SECBIT_NO_SETUID_FIXUP)");
++			return false;
++		}
++		restore_effective = true;
+ 	}
+ 
+ 	/*
+@@ -312,6 +321,22 @@ bool initNsFromChild(nsj_t* nsj) {
+ 		return false;
+ 	}
+ 
++	if (restore_effective) {
++		struct __user_cap_header_struct hdr = {.version = _LINUX_CAPABILITY_VERSION_3, .pid = 0};
++		struct __user_cap_data_struct data[_LINUX_CAPABILITY_U32S_3] = {};
++		if (util::syscall(__NR_capget, (uintptr_t)&hdr, (uintptr_t)data) == -1) {
++			PLOG_E("capget()");
++			return false;
++		}
++		for (size_t i = 0; i < _LINUX_CAPABILITY_U32S_3; i++) {
++			data[i].effective = data[i].permitted;
++		}
++		if (util::syscall(__NR_capset, (uintptr_t)&hdr, (uintptr_t)data) == -1) {
++			PLOG_E("capset()");
++			return false;
++		}
++	}
++
+ 	/*
+ 	 * Disable securebits again to avoid spawned programs
+ 	 * unexpectedly retaining capabilities after a UID/GID

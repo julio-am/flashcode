@@ -23,3 +23,39 @@ jobs:
         env:
           FLASH_RUNNER: local
       - run: npm run build
+
+  # Builds the sandbox runner, runs it under gVisor, attacks it, and grades
+  # every problem through it.
+  sandbox:
+    runs-on: ubuntu-24.04
+    env:
+      FLASH_SANDBOX_URL: http://127.0.0.1:8080
+      FLASH_SANDBOX_TOKEN: ci-runner-token-0123456789
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install gVisor
+        run: |
+          curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" \
+            | sudo tee /etc/apt/sources.list.d/gvisor.list
+          sudo apt-get update && sudo apt-get install -y runsc
+          sudo runsc install
+          sudo systemctl restart docker
+      - run: docker build -f runner/Dockerfile -t flashcode-runner .
+      - name: Start the runner under gVisor
+        run: |
+          docker run -d --name runner --runtime=runsc --memory 4g \
+            -p 127.0.0.1:8080:8080 -e RUNNER_TOKEN="$FLASH_SANDBOX_TOKEN" flashcode-runner
+          for i in $(seq 30); do curl -fs "$FLASH_SANDBOX_URL/healthz" && exit 0; sleep 1; done
+          docker logs runner; exit 1
+      - run: npx vitest run tests/sandbox-isolation.test.ts
+      - run: npm run verify
+        env:
+          FLASH_RUNNER: sandbox
+      - if: failure()
+        run: docker logs runner
