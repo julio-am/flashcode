@@ -59,6 +59,10 @@ v1 is scoped to C++23: every runner compiles with `-std=c++23` (`CXX_STD` in `sr
 
 With `FLASH_SANDBOX_URL` set, `sandbox` is the default. In production the `local` runner refuses to start, since it is not a sandbox. [runner/README.md](runner/README.md) covers building and hosting the sandbox runner.
 
+## Deploying
+
+[deploy/README.md](deploy/README.md) is the runbook: one Linux server running Caddy, the web app, the worker, Postgres and the sandbox runner (under gVisor) with Docker Compose, deployed from `main` by the Deploy workflow.
+
 ## Adding problems
 
 See [problems/README.md](problems/README.md). Every problem has a reference solution that must pass and at least one wrong answer that must fail; `npm run verify` checks all of them.
@@ -85,8 +89,5 @@ src/lib/grade-attempt.ts  worker-side grading of one attempt
 src/worker.ts             pg-boss consumer
 src/app/                  pages and API routes
 runner/                   the sandbox runner service (Docker image, nsjail configs)
+deploy/                   production stack (Compose, Caddy), server setup, runbook
 ```
-
-## Not done yet
-
-- Deployment config.

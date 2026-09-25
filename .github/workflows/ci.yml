@@ -75,3 +75,38 @@ jobs:
           FLASH_RUNNER: sandbox
       - if: failure()
         run: docker logs runner
+
+  # Brings up the production stack from deploy/ (Caddy, web, worker, Postgres,
+  # the runner under gVisor) the way the Deploy workflow does, then grades a
+  # real submission through it.
+  deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "FLASHCODE_ROOT=$RUNNER_TEMP/flashcode" >> "$GITHUB_ENV"
+      - name: Install gVisor
+        run: |
+          curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" \
+            | sudo tee /etc/apt/sources.list.d/gvisor.list
+          sudo apt-get update && sudo apt-get install -y runsc
+          sudo runsc install
+          sudo systemctl restart docker
+      - name: Write a throwaway env file
+        run: |
+          mkdir -p "$FLASHCODE_ROOT"
+          {
+            echo SITE_DOMAIN=localhost
+            for v in POSTGRES_PASSWORD SESSION_SECRET BETTER_AUTH_SECRET RUNNER_TOKEN; do echo "$v=$(openssl rand -hex 32)"; done
+          } > "$FLASHCODE_ROOT/.env"
+      - run: deploy/deploy.sh
+        env:
+          DEPLOY_CHECK_INSECURE: "1"
+      - run: deploy/smoke-test.sh https://localhost
+        env:
+          SMOKE_INSECURE: "1"
+      - name: The runner has no way out
+        run: |
+          ! docker exec flashcode-runner-1 python3 -c "import urllib.request; urllib.request.urlopen('https://example.com', timeout=5)"
+      - if: failure()
+        run: docker compose -p flashcode logs --no-color

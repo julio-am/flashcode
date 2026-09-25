@@ -1,0 +1,11 @@
+# Build context for the app image (Dockerfile) and the runner image (runner/Dockerfile).
+.git
+.github
+.next
+node_modules
+coverage
+.env*
+!.env.example
+*.tsbuildinfo
+next-env.d.ts
+deploy/*.env

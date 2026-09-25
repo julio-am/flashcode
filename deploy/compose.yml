@@ -1,0 +1,116 @@
+# FlashCode on one machine: Caddy (HTTPS) -> web, a grading worker, Postgres,
+# and the sandbox runner under gVisor. See deploy/README.md.
+#
+#   docker compose -f deploy/compose.yml --env-file /opt/flashcode/.env up -d --build
+#
+# Every value comes from that env file (template: deploy/production.env.example).
+# Each service gets only the variables it needs; the runner gets its token and
+# nothing else.
+name: flashcode
+
+x-app-env: &app-env
+  NODE_ENV: production
+  DATABASE_URL: postgres://flashcode:${POSTGRES_PASSWORD:?}@postgres:5432/flashcode
+  SESSION_SECRET: ${SESSION_SECRET:?}
+  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?}
+  BETTER_AUTH_URL: https://${SITE_DOMAIN:?}
+  GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+  GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+
+x-app: &app
+  image: flashcode-app
+  restart: unless-stopped
+  environment: *app-env
+  logging: &logging
+    driver: local
+    options: { max-size: 10m, max-file: "3" }
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [web]
+    logging: *logging
+
+  web:
+    <<: *app
+    build: { context: .., dockerfile: Dockerfile }
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+
+  worker:
+    <<: *app
+    command: ["node_modules/.bin/tsx", "src/worker.ts"]
+    environment:
+      <<: *app-env
+      FLASH_RUNNER: sandbox
+      FLASH_SANDBOX_URL: http://runner:8080
+      FLASH_SANDBOX_TOKEN: ${RUNNER_TOKEN:?}
+      FLASH_WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
+    # The only service besides the runner on the sandbox network.
+    networks: [default, sandbox]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      runner: { condition: service_started }
+
+  migrate:
+    <<: *app
+    restart: "no"
+    command: ["node_modules/.bin/tsx", "scripts/migrate.ts"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: flashcode
+      POSTGRES_DB: flashcode
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "flashcode"]
+      interval: 5s
+      retries: 30
+    logging: *logging
+
+  # Compiles and runs submissions: nsjail per step, gVisor around the service,
+  # and a network with no way out. Don't add pids_limit here: gVisor crashes
+  # when it hits one (runner/README.md).
+  runner:
+    build: { context: .., dockerfile: runner/Dockerfile }
+    image: flashcode-runner
+    restart: unless-stopped
+    runtime: ${RUNNER_RUNTIME:-runsc}
+    mem_limit: ${RUNNER_MEMORY:-2g}
+    environment:
+      RUNNER_TOKEN: ${RUNNER_TOKEN:?}
+      RUNNER_SLOTS: ${RUNNER_SLOTS:-2}
+    networks: [sandbox]
+    logging: *logging
+
+networks:
+  # internal: no route to the internet or the host. Only the worker can reach
+  # the runner, and the runner can reach nothing outside this network.
+  sandbox:
+    internal: true
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

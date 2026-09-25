@@ -1,0 +1,48 @@
+name: Deploy
+
+# Ships main to the production server once CI passes on it, or on demand from
+# the Actions tab. Does nothing until the "production" environment is set up
+# (deploy/README.md): variable DEPLOY_HOST, secrets DEPLOY_SSH_KEY and
+# DEPLOY_KNOWN_HOSTS.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      vars.DEPLOY_HOST != '' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-24.04
+    environment:
+      name: production
+      url: https://${{ vars.SITE_DOMAIN || 'litecode.io' }}
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      TARGET: ${{ vars.DEPLOY_USER || 'deploy' }}@${{ vars.DEPLOY_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Copy the release to the server
+        run: |
+          git archive --format=tar.gz HEAD \
+            | ssh "$TARGET" "set -e; d=/opt/flashcode/releases/$SHA; rm -rf \$d; mkdir -p \$d; tar -xzf - -C \$d"
+      - name: Build and start it
+        run: ssh "$TARGET" "/opt/flashcode/releases/$SHA/deploy/deploy.sh"
