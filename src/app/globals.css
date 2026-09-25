@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --ink: #16191f;
+  --muted: #5d6573;
+  --line: #d9dde3;
+  --chip: #e8ebef;
+  --code: #1d4f91;
+  --accent: #1f5fa8;
+  --accent-soft: #e2ebf7;
+  --good: #1f7a47;
+  --good-soft: #e3f3e9;
+  --bad: #b3372b;
+  --bad-soft: #fbe9e7;
+  --code-bg: #1e222a;
+  --code-ink: #dfe4ea;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111418;
+    --surface: #181c22;
+    --ink: #e5e9ee;
+    --muted: #97a1ad;
+    --line: #2a3039;
+    --chip: #232932;
+    --code: #9cc3f5;
+    --accent: #72a9ec;
+    --accent-soft: #1b2a3d;
+    --good: #6ccb93;
+    --good-soft: #13271b;
+    --bad: #f08a7e;
+    --bad-soft: #2d1714;
+    --code-bg: #0c0f13;
+  }
+}
+
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center gap-2 rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition-[filter] hover:brightness-110 disabled:opacity-60;
+  }
+  @media (prefers-color-scheme: dark) {
+    .btn-primary {
+      @apply text-[#0c1522];
+    }
+  }
+  .btn-quiet {
+    @apply rounded-md border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)] transition hover:bg-[var(--chip)];
+  }
+  kbd {
+    @apply rounded border border-white/30 px-1 font-mono text-[11px] opacity-80;
+  }
+}

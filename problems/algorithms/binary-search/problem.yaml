@@ -1,0 +1,3 @@
+title: Binary search
+prompt: |
+  Write `int binarySearch(const std::vector<int>& nums, int target)`. `nums` is sorted ascending with no duplicates. Return the index of `target`, or `-1` if it is not there. It must run in O(log n).

@@ -1,0 +1,3 @@
+title: Vector of 5 vectors, each {5}
+prompt: |
+  Declare `v`: a vector of 5 vectors of ints, where each inner vector is exactly `{5}` (one element, the number 5).

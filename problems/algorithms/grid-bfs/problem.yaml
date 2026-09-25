@@ -1,0 +1,3 @@
+title: Shortest path in a grid with BFS
+prompt: |
+  Write `int shortestPath(const std::vector<std::vector<int>>& grid)`. `0` is open and `1` is a wall. Moving up, down, left or right costs 1 step. Return the fewest steps from the top-left cell to the bottom-right cell, or `-1` if it can't be reached (including when either corner is a wall).

@@ -1,0 +1,6 @@
+title: Append one vector to another
+prompt: |
+  Append every element of `a` to the end of `b`. Leave `a` as it is.
+given: |
+  std::vector<int> a;  // e.g. {1, 2, 3}
+  std::vector<int> b;  // e.g. {4, 5, 6}

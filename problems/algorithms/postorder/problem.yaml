@@ -1,0 +1,11 @@
+title: Postorder traversal of a BST
+prompt: |
+  Write `void postorder(TreeNode* root, std::vector<int>& out)` that appends the tree's values to `out` in postorder (left subtree, right subtree, node).
+given: |
+  struct TreeNode {
+    int val;
+    TreeNode* left;
+    TreeNode* right;
+    explicit TreeNode(int v) : val(v), left(nullptr), right(nullptr) {}
+  };
+  // The BST built from 5, 3, 8, 1, 4 gives {1, 4, 3, 8, 5}

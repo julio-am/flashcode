@@ -1,0 +1,3 @@
+title: Lower bound by hand
+prompt: |
+  Without `std::lower_bound`, write `int lowerBound(const std::vector<int>& nums, int target)`: the first index `i` with `nums[i] >= target`, or `nums.size()` if there is none. `nums` is sorted ascending and may contain duplicates.

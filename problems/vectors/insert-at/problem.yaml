@@ -1,0 +1,6 @@
+title: Insert a vector in the middle of another
+prompt: |
+  Insert all elements of `mid` into `v` so that the first of them ends up at index 2.
+given: |
+  std::vector<int> v;    // e.g. {1, 2, 5, 6}
+  std::vector<int> mid;  // e.g. {3, 4}  ->  v becomes {1, 2, 3, 4, 5, 6}

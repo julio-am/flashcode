@@ -1,0 +1,6 @@
+title: Rotate a vector left by k
+prompt: |
+  Rotate `v` left by `k` places in place, so the element at index `k` becomes the first. `0 <= k <= v.size()`.
+given: |
+  std::vector<int> v;  // e.g. {1, 2, 3, 4, 5}
+  int k;               // e.g. 2  ->  v becomes {3, 4, 5, 1, 2}

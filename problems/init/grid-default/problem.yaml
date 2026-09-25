@@ -1,0 +1,6 @@
+title: 2D grid with a default value
+prompt: |
+  Declare `grid`, a `std::vector<std::vector<int>>` with `rows` rows and `cols` columns, every cell set to `-1`.
+given: |
+  int rows;  // e.g. 3
+  int cols;  // e.g. 4

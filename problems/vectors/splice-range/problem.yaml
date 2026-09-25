@@ -1,0 +1,6 @@
+title: Splice a range out of one vector into another
+prompt: |
+  Move the elements at indices 1 and 2 of `src` onto the end of `dst`, and remove them from `src`.
+given: |
+  std::vector<int> src;  // e.g. {10, 20, 30, 40}
+  std::vector<int> dst;  // e.g. {1}  ->  src {10, 40}, dst {1, 20, 30}

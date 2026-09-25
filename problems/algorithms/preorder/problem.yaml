@@ -1,0 +1,11 @@
+title: Preorder traversal of a BST
+prompt: |
+  Write `void preorder(TreeNode* root, std::vector<int>& out)` that appends the tree's values to `out` in preorder (node, left subtree, right subtree).
+given: |
+  struct TreeNode {
+    int val;
+    TreeNode* left;
+    TreeNode* right;
+    explicit TreeNode(int v) : val(v), left(nullptr), right(nullptr) {}
+  };
+  // The BST built from 5, 3, 8, 1, 4 gives {5, 3, 1, 4, 8}

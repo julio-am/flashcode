@@ -1,0 +1,3 @@
+title: Min-heap of ints
+prompt: |
+  Declare `pq`, an empty `std::priority_queue` of ints where `top()` is the smallest element.

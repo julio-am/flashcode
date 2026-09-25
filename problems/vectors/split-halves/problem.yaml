@@ -1,0 +1,5 @@
+title: Split a vector into two halves
+prompt: |
+  Declare `std::vector<int> left` with the first `v.size() / 2` elements of `v`, and `std::vector<int> right` with the rest.
+given: |
+  std::vector<int> v;  // e.g. {1, 2, 3, 4, 5} gives left {1, 2}, right {3, 4, 5}

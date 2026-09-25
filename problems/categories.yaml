@@ -1,0 +1,10 @@
+# Order here is the order categories appear in the app.
+- id: vectors
+  name: Vector operations
+  blurb: Concatenate, slice, split, splice, and erase without looking it up.
+- id: init
+  name: Initialization syntax
+  blurb: Declare nested containers, heaps with comparators, and classes in one go.
+- id: algorithms
+  name: Algorithms
+  blurb: Binary search, tree traversals, and grid search from memory.

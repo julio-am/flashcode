@@ -1,0 +1,5 @@
+title: Erase a range by index
+prompt: |
+  Remove the elements at indices 1, 2 and 3 from `v` with a single call.
+given: |
+  std::vector<int> v;  // e.g. {0, 1, 2, 3, 4, 5}  ->  {0, 4, 5}

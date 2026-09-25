@@ -1,0 +1,3 @@
+title: Class with a constructor and operator<
+prompt: |
+  Define `class User` with public members `int age` and `std::pair<std::string, std::string> name` (first, last), a constructor `User(int age, std::string first, std::string last)`, and an `operator<` that orders users alphabetically by `name`.

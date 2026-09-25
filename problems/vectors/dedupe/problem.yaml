@@ -1,0 +1,5 @@
+title: Sort and remove duplicates
+prompt: |
+  Sort `v` ascending and remove duplicates so each value appears exactly once.
+given: |
+  std::vector<int> v;  // e.g. {3, 1, 3, 2, 1}  ->  {1, 2, 3}

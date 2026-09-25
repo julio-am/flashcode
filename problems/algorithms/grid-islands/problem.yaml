@@ -1,0 +1,3 @@
+title: Count islands with DFS
+prompt: |
+  Write `int numIslands(std::vector<std::vector<char>>& grid)`. Cells are `'1'` (land) or `'0'` (water). An island is land connected up, down, left or right (not diagonally). Return the number of islands. You may modify `grid`.

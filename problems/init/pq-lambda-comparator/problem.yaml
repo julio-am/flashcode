@@ -1,0 +1,3 @@
+title: Priority queue with a lambda comparator
+prompt: |
+  Declare `pq`, an empty priority queue of `std::pair<int, std::string>` (priority, task) whose `top()` is the pair with the smallest priority. Use a lambda as the comparator.

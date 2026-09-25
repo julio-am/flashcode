@@ -1,0 +1,3 @@
+title: The four grid directions
+prompt: |
+  Declare `dirs`, a `std::vector<std::pair<int, int>>` holding the four (row, col) steps for up, down, left and right. Any order.

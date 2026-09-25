@@ -1,0 +1,3 @@
+title: Hash map from a literal
+prompt: |
+  Declare `ages`, a `std::unordered_map` from `std::string` to `int`, initialized in its declaration with `"ann"` → 31 and `"bob"` → 27.
