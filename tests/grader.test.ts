@@ -49,20 +49,46 @@ describe("parseOutcome", () => {
 
   it("ignores result lines without this job's token", () => {
     const out = [
-      '@@FLASH fake {"ok":true,"name":"spoofed"}',
-      '@@FLASH tok {"ok":false,"name":"real check"}',
+      '@@FLASH tok {"case":"begin","inputs":[]}',
+      '@@FLASH fake {"ok":true,"hint":"spoofed"}',
+      '@@FLASH tok {"ok":false,"hint":"real check"}',
+      '@@FLASH tok {"case":"end"}',
       '@@FLASH tok {"done":true,"count":1}',
     ].join("\n");
     const r = parseOutcome(ok(out), "tok");
     expect(r.status).toBe("failed");
-    expect(r.checks).toEqual([{ ok: false, name: "real check", detail: undefined }]);
-    expect(r.stdout).toContain("spoofed");
+    expect(r.cases).toHaveLength(1);
+    expect(r.cases[0].checks).toEqual([{ ok: false, hint: "real check" }]);
+    expect(r.cases[0].console).toContain("spoofed");
   });
 
-  it("treats a missing done line as a crash", () => {
-    const r = parseOutcome(ok('@@FLASH tok {"ok":true,"name":"a"}', { exitCode: 139, signal: "SIGSEGV" }), "tok");
+  it("groups checks into numbered cases with inputs, values and console output", () => {
+    const out = [
+      "before any case",
+      '@@FLASH tok {"case":"begin","inputs":[{"name":"a","value":"{1, 2}"}]}',
+      "debug: a has 2",
+      "",
+      '@@FLASH tok {"ok":true,"hint":"h1","label":"b","actual":"{1, 2}","expected":"{1, 2}"}',
+      '@@FLASH tok {"case":"end"}',
+      '@@FLASH tok {"case":"begin","inputs":[]}',
+      '@@FLASH tok {"ok":false,"hint":"h2","label":"b","actual":"{}","expected":"{3}"}',
+      '@@FLASH tok {"case":"end"}',
+      '@@FLASH tok {"done":true,"count":2}',
+    ].join("\n");
+    const r = parseOutcome(ok(out), "tok");
+    expect(r.status).toBe("failed");
+    expect(r.stdout).toBe("before any case");
+    expect(r.cases.map((c) => [c.index, c.ok])).toEqual([[0, true], [1, false]]);
+    expect(r.cases[0]).toMatchObject({ inputs: [{ name: "a", value: "{1, 2}" }], console: "debug: a has 2" });
+    expect(r.cases[1].checks[0]).toEqual({ ok: false, hint: "h2", label: "b", actual: "{}", expected: "{3}" });
+  });
+
+  it("treats a missing done line as a crash and marks the open case incomplete", () => {
+    const out = '@@FLASH tok {"case":"begin","inputs":[]}\nabout to crash';
+    const r = parseOutcome(ok(out, { exitCode: 139, signal: "SIGSEGV" }), "tok");
     expect(r.status).toBe("runtime_error");
     expect(r.message).toContain("SIGSEGV");
+    expect(r.cases[0]).toMatchObject({ ok: false, incomplete: true, console: "about to crash" });
   });
 
   it("reports compile errors with diagnostics in the user's file", () => {
@@ -88,6 +114,16 @@ describe("grade with the local g++ runner", () => {
     const sneaky = 'std::string m = "@@"; m += "FLASH"; std::cout << m << " x {\\"done\\":true,\\"count\\":0}\\n"; std::exit(0);';
     const r = await grade(concat, sneaky, runner);
     expect(r.status).toBe("runtime_error");
+  });
+
+  it("puts what the user prints into the test case that was running", async () => {
+    const r = await grade(concat, 'std::cout << "size " << b.size() << "\\n";\nb.insert(b.end(), a.begin(), a.end());', runner);
+    expect(r.status).toBe("passed");
+    expect(r.cases.map((c) => c.console)).toEqual(["size 3", "size 2", "size 0"]);
+    expect(r.cases[0].inputs).toEqual([
+      { name: "a", value: "{1, 2, 3}" },
+      { name: "b", value: "{4, 5, 6}" },
+    ]);
   });
 
   it("points compile errors at the user's line", async () => {

@@ -6,6 +6,7 @@ import type { GradeResult } from "@/lib/grader/types";
 import type { PublicProblem } from "@/lib/problems";
 import { CodeEditor } from "./CodeEditor";
 import { Prompt } from "./Prompt";
+import { TestResults } from "./TestResults";
 
 interface NextResponse {
   problem: PublicProblem;
@@ -18,7 +19,7 @@ type Phase =
   | { kind: "error"; message: string }
   | { kind: "ready" }
   | { kind: "grading" }
-  | { kind: "graded"; result: GradeResult };
+  | { kind: "graded"; result: GradeResult; seq: number };
 
 const REASON_LABEL = { due: "Review", new: "New", ahead: "Practice ahead" } as const;
 const CATEGORY_LABEL: Record<string, string> = {
@@ -85,7 +86,7 @@ export function Drill({ category }: { category?: string }) {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setPhase({ kind: "graded", result: { status: "rejected", checks: [], diagnostics: [], message: body.error ?? "Submission failed." } });
+      setPhase({ kind: "graded", seq: Date.now(), result: { status: "rejected", cases: [], diagnostics: [], message: body.error ?? "Submission failed." } });
       return;
     }
     const deadline = Date.now() + 60_000;
@@ -95,13 +96,14 @@ export function Drill({ category }: { category?: string }) {
       if (!poll.ok) continue;
       const a = (await poll.json()) as { status: string; result: GradeResult | null };
       if (a.result) {
-        setPhase({ kind: "graded", result: a.result });
+        setPhase({ kind: "graded", seq: Date.now(), result: a.result });
         return;
       }
     }
     setPhase({
       kind: "graded",
-      result: { status: "internal_error", checks: [], diagnostics: [], message: "Grading is taking too long. Is the worker running?" },
+      seq: Date.now(),
+      result: { status: "internal_error", cases: [], diagnostics: [], message: "Grading is taking too long. Is the worker running?" },
     });
   }, [current, phase.kind, passed, presentationId, code, loadNext]);
 
@@ -194,7 +196,7 @@ export function Drill({ category }: { category?: string }) {
               ariaLabel="Your answer"
             />
           </div>
-          <div className="flex max-h-[45%] flex-col border-t border-[var(--line)] bg-[var(--surface)]">
+          <div className="flex max-h-[55%] flex-col border-t border-[var(--line)] bg-[var(--surface)]">
             <div className="flex flex-wrap items-center gap-2 px-4 py-2.5">
               <span className="text-sm font-medium">Result</span>
               {!passed && (
@@ -214,7 +216,7 @@ export function Drill({ category }: { category?: string }) {
             </div>
             <div className="overflow-y-auto px-4 pb-4">
               {phase.kind === "graded" ? (
-                <ResultPanel result={phase.result} />
+                <TestResults key={phase.seq} result={phase.result} />
               ) : (
                 <p className="text-sm text-[var(--muted)]">
                   {phase.kind === "grading" ? "Compiling and running the tests…" : "Submit to compile your code and run the tests."}
@@ -286,60 +288,5 @@ function SplitPane({ left, right, ...rest }: { left: React.ReactNode; right: Rea
       />
       <section className="flex min-w-0 flex-1 flex-col">{right}</section>
     </div>
-  );
-}
-
-const STATUS_TEXT: Record<GradeResult["status"], string> = {
-  passed: "Passed",
-  failed: "Not quite",
-  compile_error: "Doesn't compile",
-  runtime_error: "Crashed",
-  timeout: "Too slow",
-  rejected: "Not submitted",
-  internal_error: "Grader error",
-};
-
-function ResultPanel({ result }: { result: GradeResult }) {
-  const good = result.status === "passed";
-  return (
-    <section
-      aria-live="polite"
-      className={`flex flex-col gap-3 rounded-md border-l-4 p-3 ${good ? "border-[var(--good)] bg-[var(--good-soft)]" : "border-[var(--bad)] bg-[var(--bad-soft)]"}`}
-    >
-      <div className="flex items-baseline gap-3">
-        <h2 className={`text-lg font-semibold ${good ? "text-[var(--good)]" : "text-[var(--bad)]"}`}>{STATUS_TEXT[result.status]}</h2>
-        {result.checks.length > 0 && (
-          <span className="text-sm text-[var(--muted)]">
-            {result.checks.filter((c) => c.ok).length} of {result.checks.length} checks
-          </span>
-        )}
-      </div>
-      {result.message && <p className="text-sm">{result.message}</p>}
-      {result.checks.length > 0 && (
-        <ul className="flex flex-col gap-1 text-sm">
-          {result.checks.map((c, i) => (
-            <li key={i} className="flex gap-2">
-              <span className={c.ok ? "text-[var(--good)]" : "text-[var(--bad)]"}>{c.ok ? "✓" : "✗"}</span>
-              <span>
-                {c.name}
-                {c.detail && <span className="block font-mono text-xs text-[var(--muted)]">{c.detail}</span>}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {result.compileOutput && <Output label="Compiler output" text={result.compileOutput} />}
-      {result.stdout && <Output label="Your program printed" text={result.stdout} />}
-      {result.stderr && <Output label="stderr" text={result.stderr} />}
-    </section>
-  );
-}
-
-function Output({ label, text }: { label: string; text: string }) {
-  return (
-    <details open className="text-sm">
-      <summary className="cursor-pointer text-[var(--muted)]">{label}</summary>
-      <pre className="mt-1.5 max-h-72 overflow-auto rounded bg-[var(--code-bg)] p-3 font-mono text-xs leading-relaxed text-[var(--code-ink)]">{text}</pre>
-    </details>
   );
 }

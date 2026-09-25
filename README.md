@@ -29,7 +29,7 @@ browser ──POST /api/attempts──▶ Next.js ──pg-boss job──▶ wor
 
 1. The web app validates the submission, rate-limits it (10 per minute, 2 in flight per user), stores an `attempts` row, and queues a job. It never compiles anything.
 2. The worker splices the answer into the problem's `harness.cpp` at `// @USER_CODE`, with `#line` directives so compiler errors point at `your_code.cpp:2`, not at the harness.
-3. The Runner compiles and runs it. The program reads a random per-job token from stdin and prints one `@@FLASH <token> {...}` line per check, then a done line. Output without the token (a user printing a fake pass) is ignored, and a missing done line counts as a crash.
+3. The Runner compiles and runs it. The program reads a random per-job token from stdin and prints `@@FLASH <token> {...}` lines as each numbered test case begins, checks a value, and ends, then a done line. What the program prints between those lines becomes that test case's stdout. Output without the token (a user printing a fake pass) is ignored, and a missing done line counts as a crash.
 4. The first graded result for each time a problem is shown sets its FSRS rating: pass is Good (Hard if it took over 3 minutes), fail or peeking at the solution is Again. Compile errors don't count, so a typo can be fixed and resubmitted.
 
 ## Runners

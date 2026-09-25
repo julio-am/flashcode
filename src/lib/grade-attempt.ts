@@ -29,7 +29,7 @@ export async function gradeAttempt(attemptId: string): Promise<void> {
     result = await grade(problem, attempt.code, getRunner());
   } catch (e) {
     console.error(`[grade] attempt ${attemptId} failed`, e);
-    result = { status: "internal_error", checks: [], diagnostics: [], message: "The grader hit a problem. Try again." };
+    result = { status: "internal_error", cases: [], diagnostics: [], message: "The grader hit a problem. Try again." };
   }
 
   await db()

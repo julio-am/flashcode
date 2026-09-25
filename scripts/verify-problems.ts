@@ -21,13 +21,18 @@ async function main() {
     for (const r of results) {
       const g = await grade(p, r.code, runner);
       const ok = r.shouldPass ? g.status === "passed" : g.status !== "passed" && g.status !== "internal_error";
-      const summary = `${g.status}${g.checks.length ? ` (${g.checks.filter((c) => c.ok).length}/${g.checks.length} checks)` : ""}`;
+      const summary = `${g.status}${g.cases.length ? ` (${g.cases.filter((c) => c.ok).length}/${g.cases.length} tests)` : ""}`;
       console.log(`${ok ? "ok  " : "FAIL"} ${p.id} ${r.name}: ${summary}${g.timeMs != null ? ` ${g.timeMs}ms` : ""}`);
       if (!ok) {
         failures++;
         if (g.compileOutput) console.log(g.compileOutput.split("\n").slice(0, 20).join("\n"));
         if (g.message) console.log("  " + g.message);
-        for (const c of g.checks.filter((c) => !c.ok)) console.log(`  x ${c.name}${c.detail ? `: ${c.detail}` : ""}`);
+        for (const t of g.cases.filter((c) => !c.ok)) {
+          console.log(`  x Test #${t.index} ${t.inputs.map((i) => `${i.name} = ${i.value}`).join(", ")}`);
+          for (const c of t.checks.filter((c) => !c.ok)) {
+            console.log(`      ${c.hint}${c.label ? `: ${c.label} = ${c.actual}, expected ${c.expected}` : ""}`);
+          }
+        }
         if (g.stderr) console.log("  stderr: " + g.stderr.slice(0, 500));
       }
     }

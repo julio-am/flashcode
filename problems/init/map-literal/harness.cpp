@@ -2,8 +2,8 @@ int main() {
   // @USER_CODE
   static_assert(std::is_same_v<std::decay_t<decltype(ages)>, std::unordered_map<std::string, int>>,
                 "ages should be a std::unordered_map<std::string, int>");
-  CHECK_EQ(ages.size(), std::size_t{2}, "ages has 2 entries");
-  CHECK(ages.count("ann") && ages.at("ann") == 31, "ann maps to 31");
-  CHECK(ages.count("bob") && ages.at("bob") == 27, "bob maps to 27");
+  CHECK_OUT("ages (sorted by key)", (std::map<std::string, int>(ages.begin(), ages.end())),
+            (std::map<std::string, int>{{"ann", 31}, {"bob", 27}}),
+            "ages should map \"ann\" to 31 and \"bob\" to 27, and nothing else");
   FLASH_DONE();
 }
