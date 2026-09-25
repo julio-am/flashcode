@@ -81,10 +81,9 @@ jobs:
   # real submission through it.
   deploy:
     runs-on: ubuntu-24.04
-    env:
-      FLASHCODE_ROOT: ${{ runner.temp }}/flashcode
     steps:
       - uses: actions/checkout@v4
+      - run: echo "FLASHCODE_ROOT=$RUNNER_TEMP/flashcode" >> "$GITHUB_ENV"
       - name: Install gVisor
         run: |
           curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg
