@@ -19,6 +19,10 @@ internet ──443──▶ caddy ──▶ web ──┐
   host, no Postgres. It gets only its token.
 - Postgres data and Caddy's certificates live in named volumes and survive
   every deploy.
+- The app and runner images are built in GitHub Actions, for x86 and Arm, and
+  pushed to `ghcr.io/julio-am/flashcode-app` and `flashcode-runner`. The
+  server only pulls and runs them, so building never competes with the site
+  for its memory.
 
 Files here: `compose.yml` (the stack), `Caddyfile`, `setup-server.sh`
 (one-time server setup), `deploy.sh` (runs on the server for each deploy),
@@ -144,8 +148,9 @@ With the GitHub CLI instead: `gh variable set DEPLOY_HOST -b $IP`,
 ### 6. Deploy
 
 **Actions** → **Deploy** → **Run workflow** on `main`. From now on every push to
-`main` deploys by itself once CI passes on it. The first run builds both images
-on the server, which takes several minutes; later runs reuse the cache.
+`main` deploys by itself once CI passes on it. Each run builds the images in
+GitHub Actions (the first time takes several minutes, later runs reuse the
+cache), then the server pulls them and restarts what changed.
 
 The workflow finishes by fetching `https://litecode.io` through Caddy, so a
 green run means the site is live with a valid certificate. To check grading end
@@ -187,11 +192,12 @@ Run these on the server with `sudo` in front (or as `deploy`, which needs no sud
 | Status | `docker compose -p flashcode ps` |
 | Logs | `docker compose -p flashcode logs -f --tail 100 web worker runner` |
 | Redeploy the current release (after editing `.env`) | `sudo -u deploy /opt/flashcode/current/deploy/deploy.sh` |
-| Roll back | `ls -t /opt/flashcode/releases/` then run `deploy/deploy.sh` inside an older one |
+| Roll back | `ls -t /opt/flashcode/releases/` then run `sudo -u deploy /opt/flashcode/releases/<commit>/deploy/deploy.sh` for an older one |
 | Database shell | `docker exec -it flashcode-postgres-1 psql -U flashcode` |
 
 Every release lives in `/opt/flashcode/releases/<commit>/` (the last five are
-kept) and `/opt/flashcode/current` points at the live one. Settings live only
+kept, with the images they ran, so a rollback needs no download) and
+`/opt/flashcode/current` points at the live one. Settings live only
 in `/opt/flashcode/.env`.
 
 **Backups.** Turn on your provider's automatic server backups (Hetzner and
