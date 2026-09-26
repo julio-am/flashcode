@@ -39,8 +39,9 @@ You'll need about an hour. Steps 1, 2 and 5 happen in web consoles; the rest
 is copy-paste in a terminal on your own computer. No secret ever needs to be
 pasted anywhere but the server and GitHub's secret settings.
 
-The steps use **Oracle Cloud's Always Free tier**, which costs nothing. Any
-other Ubuntu 24.04 server with 2 GB of RAM or more works the same way (see
+The steps use **Oracle Cloud's Always Free tier**, which costs nothing. If
+Oracle has no free capacity, use [Google Cloud's free e2-micro](#1-alternative-google-cloud-free-e2-micro)
+for step 1 instead. Any other Ubuntu 24.04 server works the same way too (see
 [Other providers](#other-providers)).
 
 ### 1. Create the server (Oracle Cloud)
@@ -87,6 +88,57 @@ usually clears that bar. To rule it out, upgrade the account to *Pay As You
 Go* (Billing → Upgrade): Always Free resources stay free, but anything you
 create beyond the free allowance would then be billed, so only do it if
 you're comfortable watching that.
+
+### 1 (alternative). Google Cloud free e2-micro
+
+Google Cloud gives one small x86 server free every month. It has only 1 GB of
+RAM, which is enough because the images are built in GitHub Actions and the
+server just runs them. Idle, the whole stack uses about 350 MB, and about
+650 MB while grading a submission, and the setup script adds 2 GB of swap on
+top. Expect it to feel slower than a bigger server, and it grades one
+submission at a time.
+
+The free tier has conditions, and anything outside them is billed, so match
+these exactly. Check [Google's free tier page](https://cloud.google.com/free/docs/free-cloud-features#compute)
+when you sign up, since the terms can change.
+
+1. Sign up at [cloud.google.com/free](https://cloud.google.com/free). It asks
+   for a card; new accounts also get trial credit. Create a project (for
+   example `litecode`) and enable the **Compute Engine API** when asked.
+2. **☰ menu** → **Compute Engine** → **VM instances** → **Create instance**:
+   - **Region**: `us-west1` (Oregon), `us-central1` (Iowa) or `us-east1`
+     (South Carolina). Only these three are free.
+   - **Machine type**: series **E2**, type **e2-micro** (2 shared vCPUs, 1 GB).
+   - **Boot disk**: *Change* → **Ubuntu** → **Ubuntu 24.04 LTS** (x86/64,
+     not Arm or *Minimal*). Disk type **Standard persistent disk** (the
+     default, *Balanced*, is not free), size **30 GB**.
+   - **Firewall**: tick **Allow HTTP traffic** and **Allow HTTPS traffic**.
+     That opens ports 80 and 443; there's nothing else to open.
+   - **Security** → **Manage access** → **Add manually generated SSH keys**:
+     paste the contents of `~/.ssh/id_ed25519.pub` (make one with
+     `ssh-keygen -t ed25519` if you don't have it). The word at the end of
+     that line, after the key, is the username you'll log in with.
+   - **Create**.
+3. Note the **External IP** on the instances list; below it's `203.0.113.10`.
+   To keep it from changing when the server restarts, click the instance's
+   network interface → **IP addresses** → promote the external IP to
+   **Static**. (Google has started charging for some external IPs, so look
+   at **Billing** a day later to confirm the total is $0.)
+4. The free tier includes only 1 GB of outgoing traffic a month to most of
+   the world. A lightly used site stays under that; downloading images onto
+   the server is incoming traffic and doesn't count.
+
+Then continue with step 2. In steps 4 and 7, log in with your username from
+above instead of `ubuntu`, and **before step 6**, set the small-server sizes:
+
+```sh
+ssh <username>@$IP
+sudo nano /opt/flashcode/.env
+# change these three lines:
+WORKER_CONCURRENCY=1
+RUNNER_SLOTS=1
+RUNNER_MEMORY=768m
+```
 
 ### 2. Point litecode.io at it (Squarespace)
 
@@ -213,8 +265,9 @@ echo '15 3 * * * root docker exec flashcode-postgres-1 pg_dump -U flashcode flas
 **Sizing.** The defaults suit 2 CPUs and 4 GB or more, which covers the
 Oracle server above. On a bigger machine, raise `RUNNER_SLOTS` (jobs graded at
 once), `WORKER_CONCURRENCY` (keep it equal) and `RUNNER_MEMORY` together in
-`.env`, then redeploy. On a 2 GB machine, set all three lower before the first
-deploy: `WORKER_CONCURRENCY=1`, `RUNNER_SLOTS=1`, `RUNNER_MEMORY=1g`.
+`.env`, then redeploy. On a 1 or 2 GB machine, set all three lower before the
+first deploy: `WORKER_CONCURRENCY=1`, `RUNNER_SLOTS=1`, and `RUNNER_MEMORY=768m`
+(1 GB) or `1g` (2 GB).
 
 ## Other providers
 
