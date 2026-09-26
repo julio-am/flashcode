@@ -6,6 +6,10 @@
 # Every value comes from that env file (template: deploy/production.env.example).
 # Each service gets only the variables it needs; the runner gets its token and
 # nothing else.
+#
+# APP_IMAGE and RUNNER_IMAGE name prebuilt images (the Deploy workflow builds
+# them in GitHub Actions and passes ghcr.io tags). Unset, they're built here
+# from the Dockerfiles, which is what CI does.
 name: flashcode
 
 x-app-env: &app-env
@@ -20,7 +24,7 @@ x-app-env: &app-env
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
 
 x-app: &app
-  image: flashcode-app
+  image: ${APP_IMAGE:-flashcode-app}
   restart: unless-stopped
   environment: *app-env
   logging: &logging
@@ -94,7 +98,7 @@ services:
   # when it hits one (runner/README.md).
   runner:
     build: { context: .., dockerfile: runner/Dockerfile }
-    image: flashcode-runner
+    image: ${RUNNER_IMAGE:-flashcode-runner}
     restart: unless-stopped
     runtime: ${RUNNER_RUNTIME:-runsc}
     mem_limit: ${RUNNER_MEMORY:-2g}

@@ -61,7 +61,7 @@ if [ -f /etc/iptables/rules.v4 ] && grep -q -- '^-A INPUT .*-j REJECT' /etc/ipta
   done
 fi
 
-# Swap, so `next build` during a deploy doesn't run a 4 GB machine out of memory.
+# Swap, as headroom for small machines (grading bursts, image pulls).
 if ! swapon --show | grep -q .; then
   fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
   echo '/swapfile none swap sw 0 0' >> /etc/fstab
