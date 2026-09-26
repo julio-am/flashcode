@@ -41,9 +41,13 @@ jobs:
       - run: npm run build
 
   # Builds the sandbox runner, runs it under gVisor, attacks it, and grades
-  # every problem through it.
+  # every problem through it. Runs on x86 and on Arm (Oracle's free servers).
   sandbox:
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
     env:
       FLASH_SANDBOX_URL: http://127.0.0.1:8080
       FLASH_SANDBOX_TOKEN: ci-runner-token-0123456789
@@ -80,7 +84,11 @@ jobs:
   # the runner under gVisor) the way the Deploy workflow does, then grades a
   # real submission through it.
   deploy:
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - run: echo "FLASHCODE_ROOT=$RUNNER_TEMP/flashcode" >> "$GITHUB_ENV"

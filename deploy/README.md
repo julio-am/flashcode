@@ -25,25 +25,64 @@ Files here: `compose.yml` (the stack), `Caddyfile`, `setup-server.sh`
 `smoke-test.sh` (grades one real submission through a live site) and
 `production.env.example` (every setting).
 
-CI's `deploy` job brings this exact stack up under gVisor on every PR and
-grades a submission through it, so a green PR means the config works.
+CI's `deploy` job brings this exact stack up under gVisor on every PR, on
+both x86 and Arm, and grades a submission through it, so a green PR means the
+config works.
 
 ## First deploy
 
-You'll need about half an hour. Steps 1, 2 and 5 happen in web consoles; the
-rest is copy-paste in a terminal on your own computer. No secret ever needs to
-be pasted anywhere but the server and GitHub's secret settings.
+You'll need about an hour. Steps 1, 2 and 5 happen in web consoles; the rest
+is copy-paste in a terminal on your own computer. No secret ever needs to be
+pasted anywhere but the server and GitHub's secret settings.
 
-### 1. Create the server
+The steps use **Oracle Cloud's Always Free tier**, which costs nothing. Any
+other Ubuntu 24.04 server with 2 GB of RAM or more works the same way (see
+[Other providers](#other-providers)).
 
-Any provider works. Hetzner Cloud is the cheapest good option; DigitalOcean or
-Vultr are fine too.
+### 1. Create the server (Oracle Cloud)
 
-- Image **Ubuntu 24.04**, **x86** (not Arm).
-- At least **2 vCPU and 4 GB RAM** (on Hetzner, the smallest shared x86 plan
-  with 4 GB). The runner needs a real VM for gVisor, which every plan above is.
-- Add **your own SSH public key** when asked, so you can log in as root.
-- Note the server's **IPv4 address**. Below it's `203.0.113.10`; use yours.
+If you don't have an SSH key yet, make one on your computer first:
+`ssh-keygen -t ed25519` (press Enter at each question). Your public key is then
+in `~/.ssh/id_ed25519.pub`.
+
+1. Sign up at [oracle.com/cloud/free](https://www.oracle.com/cloud/free/).
+   It asks for a card to verify you, but Always Free resources are never
+   charged. The **home region** you pick is permanent and it's where the server
+   lives, so choose one in the US near you.
+2. In the console: **☰ menu** → **Compute** → **Instances** → **Create
+   instance**. (Oracle renames things now and then; the choices below are what
+   matters.)
+   - **Image**: *Change image* → **Canonical Ubuntu** → **24.04** (the regular
+     one, not *Minimal*).
+   - **Shape**: *Change shape* → **Ampere** → **VM.Standard.A1.Flex**, with
+     **2 OCPUs and 12 GB memory**. It's marked *Always Free-eligible*; the
+     free allowance is 4 OCPUs and 24 GB in total.
+   - **Networking**: keep *Create new virtual cloud network* and *public
+     subnet*, and make sure **Assign a public IPv4 address** is on.
+   - **Add SSH keys**: *Paste public keys*, and paste the contents of
+     `~/.ssh/id_ed25519.pub`.
+   - Leave the boot volume at its default size, then **Create**.
+
+   If it says **Out of capacity** for the shape, pick another *availability
+   domain* on the same page, or try again in a few hours. Free Arm capacity
+   comes and goes.
+3. When the instance is *Running*, note its **Public IP address**. Below it's
+   `203.0.113.10`; use yours. You log in as `ubuntu`, not root.
+4. Open the web ports in Oracle's cloud firewall. On the instance's page,
+   click its **subnet** → **Security** (or *Security Lists*) → the **Default
+   Security List** → **Add Ingress Rules**:
+   - Source CIDR `0.0.0.0/0`, IP protocol **TCP**, destination port range
+     `80,443`.
+
+   Without this, nothing reaches the server except SSH, whatever the server
+   itself allows.
+
+**Idle servers.** Oracle may reclaim an Always Free server whose CPU, network
+and memory use all stay very low for a week. A site with regular visitors
+usually clears that bar. To rule it out, upgrade the account to *Pay As You
+Go* (Billing → Upgrade): Always Free resources stay free, but anything you
+create beyond the free allowance would then be billed, so only do it if
+you're comfortable watching that.
 
 ### 2. Point litecode.io at it (Squarespace)
 
@@ -77,12 +116,12 @@ From your clone of the repo:
 
 ```sh
 IP=203.0.113.10
-scp deploy/setup-server.sh root@$IP:
-ssh root@$IP bash setup-server.sh "\"$(cat ~/.ssh/flashcode_deploy.pub)\""
+scp deploy/setup-server.sh ubuntu@$IP:
+ssh ubuntu@$IP sudo bash setup-server.sh "\"$(cat ~/.ssh/flashcode_deploy.pub)\""
 ```
 
 It installs Docker and gVisor, turns on a firewall that allows only SSH, HTTP
-and HTTPS, adds 2 GB of swap, creates a `deploy` user that accepts the key from
+and HTTPS (including Oracle's own server rules), adds 2 GB of swap, creates a `deploy` user that accepts the key from
 step 3, and writes `/opt/flashcode/.env` with freshly generated database,
 session, auth and runner secrets. It ends by printing `gVisor works.`
 
@@ -132,8 +171,8 @@ Guests can use the site without this. For the GitHub and Google buttons:
 Put the ids and secrets on the server, then redeploy:
 
 ```sh
-ssh root@$IP
-nano /opt/flashcode/.env        # fill GITHUB_CLIENT_ID/SECRET, GOOGLE_CLIENT_ID/SECRET
+ssh ubuntu@$IP
+sudo nano /opt/flashcode/.env   # fill GITHUB_CLIENT_ID/SECRET, GOOGLE_CLIENT_ID/SECRET
 sudo -u deploy /opt/flashcode/current/deploy/deploy.sh
 ```
 
@@ -141,7 +180,7 @@ A button appears once both halves of its pair are set.
 
 ## Running it
 
-Run these on the server (as root or `deploy`).
+Run these on the server with `sudo` in front (or as `deploy`, which needs no sudo).
 
 | Task | Command |
 | --- | --- |
@@ -157,7 +196,7 @@ in `/opt/flashcode/.env`.
 
 **Backups.** Turn on your provider's automatic server backups (Hetzner and
 DigitalOcean both offer them). For a database dump you can copy off the
-machine, add a nightly cron job as root:
+machine, add a nightly cron job (from `sudo -i`):
 
 ```sh
 mkdir -p /opt/flashcode/backups
@@ -165,9 +204,21 @@ echo '15 3 * * * root docker exec flashcode-postgres-1 pg_dump -U flashcode flas
   > /etc/cron.d/flashcode-backup
 ```
 
-**Sizing.** The defaults suit 2 vCPU / 4 GB. On a bigger machine, raise
-`RUNNER_SLOTS` (jobs graded at once), `WORKER_CONCURRENCY` (keep it equal) and
-`RUNNER_MEMORY` together in `.env`, then redeploy.
+**Sizing.** The defaults suit 2 CPUs and 4 GB or more, which covers the
+Oracle server above. On a bigger machine, raise `RUNNER_SLOTS` (jobs graded at
+once), `WORKER_CONCURRENCY` (keep it equal) and `RUNNER_MEMORY` together in
+`.env`, then redeploy. On a 2 GB machine, set all three lower before the first
+deploy: `WORKER_CONCURRENCY=1`, `RUNNER_SLOTS=1`, `RUNNER_MEMORY=1g`.
+
+## Other providers
+
+Any VM with **Ubuntu 24.04** (x86-64 or Arm), **2 GB of RAM or more** and a
+public IP works: DigitalOcean (a Basic *Regular* droplet), Vultr, Linode,
+Hetzner and so on. Pick the plain Ubuntu 24.04 image, not a "Docker"
+marketplace one, since the setup script installs Docker itself. Then follow
+steps 2 to 7 above, logging in as `root` instead of `ubuntu` if that's what
+the provider gives you. Most of them have no separate cloud firewall to open,
+unlike Oracle.
 
 **Changing the domain.** Set `SITE_DOMAIN` in `.env` and the Actions variable
 `SITE_DOMAIN` (only used for the link on the deployment), point DNS at the
