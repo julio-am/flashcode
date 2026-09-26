@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# One-time setup of a fresh Ubuntu 24.04 server for FlashCode. Run as root:
+# One-time setup of a fresh Ubuntu 24.04 server (x86-64 or Arm) for FlashCode.
+# Run as root:
 #
-#   bash setup-server.sh "<public key GitHub Actions deploys with>"
+#   sudo bash setup-server.sh "<public key GitHub Actions deploys with>"
 #
 # Installs Docker and gVisor, opens only SSH/HTTP/HTTPS, adds 2 GB of swap,
 # creates a "deploy" user for GitHub Actions, and writes /opt/flashcode/.env
@@ -46,6 +47,19 @@ ufw allow 80/tcp
 ufw allow 443/tcp
 ufw allow 443/udp
 ufw --force enable
+
+# Oracle Cloud's Ubuntu images also load their own iptables rules at boot
+# (/etc/iptables/rules.v4), which reject everything but SSH. Let HTTP and
+# HTTPS through those too, now and after a reboot. (Oracle's cloud firewall,
+# the VCN security list, is separate: see deploy/README.md.)
+if [ -f /etc/iptables/rules.v4 ] && grep -q -- '^-A INPUT .*-j REJECT' /etc/iptables/rules.v4; then
+  for rule in "-p tcp --dport 80" "-p tcp --dport 443" "-p udp --dport 443"; do
+    # shellcheck disable=SC2086
+    iptables -C INPUT $rule -j ACCEPT 2>/dev/null || iptables -I INPUT 1 $rule -j ACCEPT
+    grep -qxF -- "-A INPUT $rule -j ACCEPT" /etc/iptables/rules.v4 \
+      || sed -i "0,/^-A INPUT .*-j REJECT/s//-A INPUT $rule -j ACCEPT\n&/" /etc/iptables/rules.v4
+  done
+fi
 
 # Swap, so `next build` during a deploy doesn't run a 4 GB machine out of memory.
 if ! swapon --show | grep -q .; then

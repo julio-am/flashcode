@@ -53,6 +53,15 @@ COPY --from=nsjail /nsjail/nsjail /usr/local/bin/nsjail
 # each submission skips re-parsing <bits/stdc++.h>.
 COPY grader/flash.h /opt/flash/flash.h
 COPY runner/server.py runner/compile.cfg runner/run.cfg /opt/runner/
+# Arm64 (e.g. Oracle's Ampere servers) has no fork or vfork syscalls, only
+# clone, so the seccomp filter can't name them there; blocking clone without
+# CLONE_VM still stops every new process. It has no /usr/lib64 either, which
+# the jails bind-mount, so create an empty one.
+ARG TARGETARCH
+RUN if [ "$TARGETARCH" = arm64 ] || [ "$(uname -m)" = aarch64 ]; then \
+      sed -i 's/{ fork, vfork, clone {/{ clone {/' /opt/runner/run.cfg && grep -q '{ clone {' /opt/runner/run.cfg; \
+    fi \
+    && mkdir -p /usr/lib64
 RUN python3 /opt/runner/server.py --build-pch
 
 # Jobs live here; each one is bind-mounted alone into its own jail.
